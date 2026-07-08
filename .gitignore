@@ -1,0 +1,23 @@
+# Dependencias de Node.js
+node_modules/
+
+# Variables de entorno
+.env
+
+# Certificados SSL (¡NUNCA subir a GitHub!)
+server.key
+server.cert
+server.pfx
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Archivos de configuración local
+.vscode/
+.idea/
