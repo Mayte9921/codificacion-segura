@@ -1,0 +1,88 @@
+{
+  "info": {
+    "name": "Sesión 2 - Clima y Tareas",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Clima",
+      "item": [
+        {
+          "name": "🌤️ Obtener clima (éxito)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/clima/Madrid",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "clima", "Madrid"]
+            }
+          }
+        },
+        {
+          "name": "❌ Ciudad inválida (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/clima/123",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "clima", "123"]
+            }
+          }
+        },
+        {
+          "name": "❌ Ciudad con caracteres especiales (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/clima/New%20York%21",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "clima", "New%20York%21"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tareas con clima",
+      "item": [
+        {
+          "name": "🌤️ Obtener tarea con clima (éxito)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/tareas/1/clima/Madrid",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tareas", "1", "clima", "Madrid"]
+            }
+          }
+        },
+        {
+          "name": "❌ Tarea no encontrada (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/tareas/999/clima/Madrid",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tareas", "999", "clima", "Madrid"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
