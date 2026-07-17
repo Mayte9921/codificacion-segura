@@ -1,70 +1,237 @@
 {
   "info": {
-    "name": "Sesión 2 - Clima y Tareas",
+    "name": "Sesión 2 - Clima y Tareas con Autenticación",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Clima",
+      "name": "Autenticación",
       "item": [
         {
-          "name": "🌤️ Obtener clima (éxito)",
+          "name": "📝 Registrar usuario",
           "request": {
-            "method": "GET",
-            "header": [],
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"alumno@demo.com\",\n  \"password\": \"123456\"\n}"
+            },
             "url": {
-              "raw": "http://localhost:3000/api/clima/Madrid",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "3000",
-              "path": ["api", "clima", "Madrid"]
+              "raw": "{{base_url}}/auth/registro",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "registro"]
             }
           }
         },
         {
-          "name": "❌ Ciudad inválida (400)",
+          "name": "🔑 Iniciar sesión",
           "request": {
-            "method": "GET",
-            "header": [],
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"alumno@demo.com\",\n  \"password\": \"123456\"\n}"
+            },
             "url": {
-              "raw": "http://localhost:3000/api/clima/123",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "3000",
-              "path": ["api", "clima", "123"]
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
             }
-          }
+          },
+          "response": []
         },
         {
-          "name": "❌ Ciudad con caracteres especiales (400)",
+          "name": "👤 Ver perfil",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
-              "raw": "http://localhost:3000/api/clima/New%20York%21",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "3000",
-              "path": ["api", "clima", "New%20York%21"]
+              "raw": "{{base_url}}/auth/perfil",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "perfil"]
             }
           }
         }
       ]
     },
     {
-      "name": "Tareas con clima",
+      "name": "Tareas (protegidas)",
       "item": [
         {
-          "name": "🌤️ Obtener tarea con clima (éxito)",
+          "name": "📋 Listar tareas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tareas",
+              "host": ["{{base_url}}"],
+              "path": ["tareas"]
+            }
+          }
+        },
+        {
+          "name": "📝 Crear tarea",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Estudiar para el examen\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tareas",
+              "host": ["{{base_url}}"],
+              "path": ["tareas"]
+            }
+          }
+        },
+        {
+          "name": "✏️ Actualizar tarea",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"completada\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tareas/1",
+              "host": ["{{base_url}}"],
+              "path": ["tareas", "1"]
+            }
+          }
+        },
+        {
+          "name": "🗑️ Eliminar tarea",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tareas/1",
+              "host": ["{{base_url}}"],
+              "path": ["tareas", "1"]
+            }
+          }
+        },
+        {
+          "name": "🌤️ Tarea con clima",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tareas/1/clima?ciudad=Madrid",
+              "host": ["{{base_url}}"],
+              "path": ["tareas", "1", "clima"],
+              "query": [
+                {
+                  "key": "ciudad",
+                  "value": "Madrid"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clima (protegido)",
+      "item": [
+        {
+          "name": "🌤️ Clima independiente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/clima/Madrid",
+              "host": ["{{base_url}}"],
+              "path": ["clima", "Madrid"]
+            }
+          }
+        },
+        {
+          "name": "❌ Error: ciudad inválida",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/clima/123",
+              "host": ["{{base_url}}"],
+              "path": ["clima", "123"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pruebas de error",
+      "item": [
+        {
+          "name": "❌ Sin token (401)",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3000/api/tareas/1/clima/Madrid",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "3000",
-              "path": ["api", "tareas", "1", "clima", "Madrid"]
+              "raw": "{{base_url}}/tareas",
+              "host": ["{{base_url}}"],
+              "path": ["tareas"]
             }
           }
         },
@@ -72,17 +239,30 @@
           "name": "❌ Tarea no encontrada (404)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
-              "raw": "http://localhost:3000/api/tareas/999/clima/Madrid",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "3000",
-              "path": ["api", "tareas", "999", "clima", "Madrid"]
+              "raw": "{{base_url}}/tareas/999",
+              "host": ["{{base_url}}"],
+              "path": ["tareas", "999"]
             }
           }
         }
       ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api"
+    },
+    {
+      "key": "token",
+      "value": ""
     }
   ]
 }
