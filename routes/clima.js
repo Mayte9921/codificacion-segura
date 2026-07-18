@@ -1,57 +1,40 @@
 // routes/clima.js
 const express = require('express');
+const router = express.Router();
 const { param, validationResult } = require('express-validator');
 const { obtenerClima } = require('../services/climaService');
 
-const router = express.Router();
+function validar(req, res, next) {
+    const errores = validationResult(req);
+    if (!errores.isEmpty()) {
+        return res.status(400).json({ errores: errores.array() });
+    }
+    next();
+}
 
-/**
- * GET /api/clima/:ciudad
- * Endpoint independiente para obtener el clima de cualquier ciudad
- * 
- * Ejemplo: GET /api/clima/Madrid
- * Ejemplo: GET /api/clima/Londres
- * Ejemplo: GET /api/clima/Buenos%20Aires (ciudades con espacios)
- */
+// GET /api/clima/:ciudad — clima de una ciudad (independiente)
 router.get(
     '/:ciudad',
     [
         param('ciudad')
+            .isString()
             .trim()
-            .notEmpty().withMessage('El parámetro ciudad no puede estar vacío')
-            .isLength({ min: 2, max: 100 }).withMessage('La ciudad debe tener entre 2 y 100 caracteres')
-            .matches(/^[a-zA-ZáéíóúñÁÉÍÓÚÑ\s\-]+$/).withMessage('La ciudad solo debe contener letras, espacios o guiones')
+            .isLength({ min: 1, max: 60 })
+            .withMessage('La ciudad debe tener entre 1 y 60 caracteres')
             .escape()
     ],
+    validar,
     async (req, res) => {
-        // Validar la entrada
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({
-                exito: false,
-                errores: errors.array().map(err => ({
-                    campo: err.param,
-                    mensaje: err.msg
-                }))
-            });
-        }
-
-        const ciudad = req.params.ciudad;
-
         try {
-            const datosClima = await obtenerClima(ciudad);
-            
-            res.json({
+            const clima = await obtenerClima(req.params.ciudad);
+            res.status(200).json({
                 exito: true,
-                datos: datosClima
+                datos: clima
             });
         } catch (error) {
-            // El servicio lanza errores con código HTTP específico
-            const statusCode = error.codigo || 502;
-            res.status(statusCode).json({
-                exito: false,
-                mensaje: error.message || 'Error al obtener el clima',
-                codigo: statusCode
+            res.status(502).json({ 
+                exito: false, 
+                error: error.message || 'Error al obtener el clima' 
             });
         }
     }

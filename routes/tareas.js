@@ -1,89 +1,173 @@
-// routes/tareas.js (agregar al final del archivo)
+// routes/tareas.js
+const express = require('express');
+const router = express.Router();
+const { body, param, validationResult } = require('express-validator');
+const tareasModel = require('../models/tareas');
 const { obtenerClima } = require('../services/climaService');
 
-// ... (todas tus rutas existentes de tareas como GET, POST, PUT, DELETE)
+// Helper para validar errores
+function validar(req, res, next) {
+    const errores = validationResult(req);
+    if (!errores.isEmpty()) {
+        return res.status(400).json({ errores: errores.array() });
+    }
+    next();
+}
 
-/**
- * GET /api/tareas/:id/clima/:ciudad
- * Endpoint que combina una tarea específica con el clima de una ciudad
- * 
- * Ejemplo: GET /api/tareas/1/clima/Madrid
- * Ejemplo: GET /api/tareas/5/clima/Barcelona
- */
+// ============================================
+// 📋 RUTAS CRUD DE TAREAS
+// ============================================
+
+// GET /api/tareas — listar todas
+router.get('/', (req, res) => {
+    res.status(200).json({
+        exito: true,
+        datos: tareasModel.obtenerTodas(),
+        total: tareasModel.obtenerTodas().length
+    });
+});
+
+// GET /api/tareas/:id — obtener una
 router.get(
-    '/:id/clima/:ciudad',
+    '/:id',
+    param('id').isInt().withMessage('El ID debe ser un número entero'),
+    validar,
+    (req, res) => {
+        const tarea = tareasModel.obtenerPorId(Number(req.params.id));
+        if (!tarea) {
+            return res.status(404).json({ error: 'Tarea no encontrada' });
+        }
+        res.status(200).json({
+            exito: true,
+            datos: tarea
+        });
+    }
+);
+
+// POST /api/tareas — crear
+router.post(
+    '/',
     [
-        // Validación para el ID de la tarea
-        param('id')
-            .isInt({ min: 1 }).withMessage('El ID de la tarea debe ser un número entero positivo')
-            .toInt(),
-        
-        // Validación para la ciudad (misma lógica que en clima.js)
-        param('ciudad')
+        body('titulo')
+            .isString()
             .trim()
-            .notEmpty().withMessage('El parámetro ciudad no puede estar vacío')
-            .isLength({ min: 2, max: 100 }).withMessage('La ciudad debe tener entre 2 y 100 caracteres')
-            .matches(/^[a-zA-ZáéíóúñÁÉÍÓÚÑ\s\-]+$/).withMessage('La ciudad solo debe contener letras, espacios o guiones')
+            .isLength({ min: 1, max: 100 })
+            .withMessage('El título debe tener entre 1 y 100 caracteres')
             .escape()
     ],
+    validar,
+    (req, res) => {
+        const { titulo, descripcion, estado } = req.body;
+        const nueva = tareasModel.crear(titulo, descripcion, estado);
+        res.status(201).json({
+            exito: true,
+            mensaje: 'Tarea creada exitosamente',
+            datos: nueva
+        });
+    }
+);
+
+// PUT /api/tareas/:id — actualizar
+router.put(
+    '/:id',
+    [
+        param('id').isInt().withMessage('El ID debe ser un número entero'),
+        body('titulo')
+            .optional()
+            .isString()
+            .trim()
+            .isLength({ min: 1, max: 100 })
+            .withMessage('El título debe tener entre 1 y 100 caracteres')
+            .escape(),
+        body('estado')
+            .optional()
+            .isIn(['pendiente', 'completada', 'en progreso'])
+            .withMessage('Estado inválido')
+    ],
+    validar,
+    (req, res) => {
+        const actualizada = tareasModel.actualizar(Number(req.params.id), req.body);
+        if (!actualizada) {
+            return res.status(404).json({ error: 'Tarea no encontrada' });
+        }
+        res.status(200).json({
+            exito: true,
+            mensaje: 'Tarea actualizada exitosamente',
+            datos: actualizada
+        });
+    }
+);
+
+// DELETE /api/tareas/:id — eliminar
+router.delete(
+    '/:id',
+    param('id').isInt().withMessage('El ID debe ser un número entero'),
+    validar,
+    (req, res) => {
+        const eliminada = tareasModel.eliminar(Number(req.params.id));
+        if (!eliminada) {
+            return res.status(404).json({ error: 'Tarea no encontrada' });
+        }
+        res.status(204).send();
+    }
+);
+
+// ============================================
+// 🌤️ ENDPOINT COMBINADO (TAREA + CLIMA)
+// ============================================
+
+// ✅ CORREGIDO: Ahora la ciudad va en la URL: /api/tareas/:id/clima/:ciudad
+router.get(
+    '/:id/clima/:ciudad',  // <--- CAMBIO CLAVE: ahora :ciudad es parte de la URL
+    [
+        param('id').isInt().withMessage('El ID debe ser un número entero'),
+        param('ciudad')    // <--- NUEVA VALIDACIÓN para la ciudad
+            .isString()
+            .trim()
+            .isLength({ min: 1, max: 60 })
+            .withMessage('La ciudad debe tener entre 1 y 60 caracteres')
+            .matches(/^[a-zA-ZáéíóúñÁÉÍÓÚÑ\s\-]+$/)
+            .withMessage('La ciudad solo debe contener letras, espacios o guiones')
+            .escape()
+    ],
+    validar,
     async (req, res) => {
-        // Validar entrada
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({
+        // 1. Obtener el ID de la tarea y la ciudad desde los parámetros de la URL
+        const tareaId = Number(req.params.id);
+        const ciudad = req.params.ciudad;  // <--- La ciudad viene de la URL
+
+        // 2. Buscar la tarea
+        const tarea = tareasModel.obtenerPorId(tareaId);
+        if (!tarea) {
+            return res.status(404).json({ 
                 exito: false,
-                errores: errors.array().map(err => ({
-                    campo: err.param,
-                    mensaje: err.msg
-                }))
+                error: `Tarea con ID ${tareaId} no encontrada` 
             });
         }
 
-        const tareaId = req.params.id;
-        const ciudad = req.params.ciudad;
-
         try {
-            // 1. Obtener la tarea por ID (usa tu modelo existente)
-            // Ajusta según tu modelo de base de datos
-            const tarea = await Tarea.findByPk(tareaId); // Si usas Sequelize
+            // 3. Obtener el clima usando el servicio
+            const clima = await obtenerClima(ciudad);
             
-            // Si usas MongoDB con Mongoose:
-            // const tarea = await Tarea.findById(tareaId);
-            
-            // Si usas un array en memoria:
-            // const tarea = tareas.find(t => t.id === parseInt(tareaId));
-
-            if (!tarea) {
-                return res.status(404).json({
-                    exito: false,
-                    mensaje: `Tarea con ID ${tareaId} no encontrada`
-                });
-            }
-
-            // 2. Obtener el clima de la ciudad
-            const datosClima = await obtenerClima(ciudad);
-
-            // 3. Combinar y responder
-            res.json({
+            // 4. Combinar y responder
+            res.status(200).json({
                 exito: true,
                 tarea: {
                     id: tarea.id,
                     titulo: tarea.titulo,
                     descripcion: tarea.descripcion,
                     estado: tarea.estado,
-                    creada: tarea.createdAt
+                    createdAt: tarea.createdAt
                 },
-                clima: datosClima,
-                mensaje: `📋 Tarea "${tarea.titulo}" - 🌤️ Clima en ${ciudad}: ${datosClima.temperatura.actual}°C`
+                clima: clima,
+                mensaje: `📋 Tarea "${tarea.titulo}" - 🌤️ Clima en ${ciudad}: ${clima.temperatura}°C`
             });
-
         } catch (error) {
-            // Manejo de errores centralizado
-            const statusCode = error.codigo || 502;
-            res.status(statusCode).json({
-                exito: false,
-                mensaje: error.message || 'Error al obtener la información combinada',
-                codigo: statusCode
+            // Manejar errores del servicio de clima
+            console.error('Error al obtener clima:', error.message);
+            res.status(502).json({ 
+                exito: false, 
+                error: error.message || 'Error al obtener el clima del servicio externo'
             });
         }
     }
