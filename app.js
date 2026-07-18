@@ -1,15 +1,13 @@
-// app.js o index.js (modifica tu archivo existente)
+// app.js o server.js
 const express = require('express');
 const helmet = require('helmet');
 const morgan = require('morgan');
 require('dotenv').config();
 
-// Importar rutas existentes
-const tareaRoutes = require('./routes/tareas');
-const authRoutes = require('./routes/auth'); // Si tienes autenticación
-
-// Importar NUEVA ruta de clima
+// Importar rutas
+const tareasRoutes = require('./routes/tareas');
 const climaRoutes = require('./routes/clima');
+const authRoutes = require('./routes/auth'); // ✅ NUEVA RUTA
 
 const app = express();
 
@@ -18,12 +16,20 @@ app.use(helmet());
 app.use(express.json());
 app.use(morgan('dev'));
 
-// Rutas
-app.use('/api/tareas', tareaRoutes);
-app.use('/api/auth', authRoutes); // Si tienes auth
-app.use('/api/clima', climaRoutes); // <--- NUEVA RUTA
+// ✅ Registrar rutas de autenticación (públicas)
+app.use('/api/auth', authRoutes);
 
-// Ruta de salud
+// ✅ Rutas protegidas (requieren autenticación)
+// Si quieres proteger las tareas y clima, descomenta estas líneas:
+// const verificarToken = require('./middleware/auth');
+// app.use('/api/tareas', verificarToken, tareasRoutes);
+// app.use('/api/clima', verificarToken, climaRoutes);
+
+// Si NO quieres protegerlas (para pruebas), usa:
+app.use('/api/tareas', tareasRoutes);
+app.use('/api/clima', climaRoutes);
+
+// Ruta de salud (pública)
 app.get('/api/salud', (req, res) => {
     res.json({ 
         status: 'ok', 
