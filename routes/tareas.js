@@ -1,127 +1,92 @@
-// routes/tareas.js
-// Rutas CRUD para tareas con integración de clima
-
-const express = require('express');
-const router = express.Router();
-const { body, param, validationResult } = require('express-validator');
-const tareasModel = require('../models/tareas');
+// routes/tareas.js (agregar al final del archivo)
 const { obtenerClima } = require('../services/climaService');
-const verificarToken = require('../middleware/auth');
 
-// Middleware de validación
-function validar(req, res, next) {
-  const errores = validationResult(req);
-  if (!errores.isEmpty()) {
-    return res.status(400).json({ errores: errores.array() });
-  }
-  next();
-}
+// ... (todas tus rutas existentes de tareas como GET, POST, PUT, DELETE)
 
-// ✅ Todas las rutas de tareas requieren autenticación
-router.use(verificarToken);
-
-// GET /api/tareas - Listar todas las tareas
-router.get('/', (req, res) => {
-  res.status(200).json(tareasModel.obtenerTodas());
-});
-
-// GET /api/tareas/:id - Obtener una tarea por ID
+/**
+ * GET /api/tareas/:id/clima/:ciudad
+ * Endpoint que combina una tarea específica con el clima de una ciudad
+ * 
+ * Ejemplo: GET /api/tareas/1/clima/Madrid
+ * Ejemplo: GET /api/tareas/5/clima/Barcelona
+ */
 router.get(
-  '/:id',
-  param('id').isInt({ min: 1 }).withMessage('El ID debe ser un número entero positivo'),
-  validar,
-  (req, res) => {
-    const tarea = tareasModel.obtenerPorId(Number(req.params.id));
-    if (!tarea) {
-      return res.status(404).json({ error: 'Tarea no encontrada' });
+    '/:id/clima/:ciudad',
+    [
+        // Validación para el ID de la tarea
+        param('id')
+            .isInt({ min: 1 }).withMessage('El ID de la tarea debe ser un número entero positivo')
+            .toInt(),
+        
+        // Validación para la ciudad (misma lógica que en clima.js)
+        param('ciudad')
+            .trim()
+            .notEmpty().withMessage('El parámetro ciudad no puede estar vacío')
+            .isLength({ min: 2, max: 100 }).withMessage('La ciudad debe tener entre 2 y 100 caracteres')
+            .matches(/^[a-zA-ZáéíóúñÁÉÍÓÚÑ\s\-]+$/).withMessage('La ciudad solo debe contener letras, espacios o guiones')
+            .escape()
+    ],
+    async (req, res) => {
+        // Validar entrada
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                exito: false,
+                errores: errors.array().map(err => ({
+                    campo: err.param,
+                    mensaje: err.msg
+                }))
+            });
+        }
+
+        const tareaId = req.params.id;
+        const ciudad = req.params.ciudad;
+
+        try {
+            // 1. Obtener la tarea por ID (usa tu modelo existente)
+            // Ajusta según tu modelo de base de datos
+            const tarea = await Tarea.findByPk(tareaId); // Si usas Sequelize
+            
+            // Si usas MongoDB con Mongoose:
+            // const tarea = await Tarea.findById(tareaId);
+            
+            // Si usas un array en memoria:
+            // const tarea = tareas.find(t => t.id === parseInt(tareaId));
+
+            if (!tarea) {
+                return res.status(404).json({
+                    exito: false,
+                    mensaje: `Tarea con ID ${tareaId} no encontrada`
+                });
+            }
+
+            // 2. Obtener el clima de la ciudad
+            const datosClima = await obtenerClima(ciudad);
+
+            // 3. Combinar y responder
+            res.json({
+                exito: true,
+                tarea: {
+                    id: tarea.id,
+                    titulo: tarea.titulo,
+                    descripcion: tarea.descripcion,
+                    estado: tarea.estado,
+                    creada: tarea.createdAt
+                },
+                clima: datosClima,
+                mensaje: `📋 Tarea "${tarea.titulo}" - 🌤️ Clima en ${ciudad}: ${datosClima.temperatura.actual}°C`
+            });
+
+        } catch (error) {
+            // Manejo de errores centralizado
+            const statusCode = error.codigo || 502;
+            res.status(statusCode).json({
+                exito: false,
+                mensaje: error.message || 'Error al obtener la información combinada',
+                codigo: statusCode
+            });
+        }
     }
-    res.status(200).json(tarea);
-  }
-);
-
-// POST /api/tareas - Crear una nueva tarea
-router.post(
-  '/',
-  body('titulo')
-    .isString()
-    .trim()
-    .isLength({ min: 1, max: 100 })
-    .withMessage('El título debe tener entre 1 y 100 caracteres')
-    .escape(), // Prevenir XSS
-  validar,
-  (req, res) => {
-    const nueva = tareasModel.crear(req.body.titulo);
-    res.status(201).json(nueva);
-  }
-);
-
-// PUT /api/tareas/:id - Actualizar una tarea
-router.put(
-  '/:id',
-  param('id').isInt({ min: 1 }).withMessage('El ID debe ser un número entero positivo'),
-  body('titulo')
-    .optional()
-    .isString()
-    .trim()
-    .isLength({ min: 1, max: 100 })
-    .withMessage('El título debe tener entre 1 y 100 caracteres')
-    .escape(),
-  body('completada')
-    .optional()
-    .isBoolean()
-    .withMessage('completada debe ser true o false'),
-  validar,
-  (req, res) => {
-    const actualizada = tareasModel.actualizar(Number(req.params.id), req.body);
-    if (!actualizada) {
-      return res.status(404).json({ error: 'Tarea no encontrada' });
-    }
-    res.status(200).json(actualizada);
-  }
-);
-
-// DELETE /api/tareas/:id - Eliminar una tarea
-router.delete(
-  '/:id',
-  param('id').isInt({ min: 1 }).withMessage('El ID debe ser un número entero positivo'),
-  validar,
-  (req, res) => {
-    const eliminada = tareasModel.eliminar(Number(req.params.id));
-    if (!eliminada) {
-      return res.status(404).json({ error: 'Tarea no encontrada' });
-    }
-    res.status(204).send(); // No content
-  }
-);
-
-// GET /api/tareas/:id/clima?ciudad=Madrid - Combina tarea + clima externo
-router.get(
-  '/:id/clima',
-  param('id').isInt({ min: 1 }).withMessage('El ID debe ser un número entero positivo'),
-  validar,
-  async (req, res) => {
-    const tarea = tareasModel.obtenerPorId(Number(req.params.id));
-    if (!tarea) {
-      return res.status(404).json({ error: 'Tarea no encontrada' });
-    }
-
-    // Obtener ciudad de query param o usar valor por defecto
-    const ciudad = req.query.ciudad || 'Ciudad de Mexico';
-
-    try {
-      const clima = await obtenerClima(ciudad);
-      res.status(200).json({ 
-        tarea, 
-        clima,
-        mensaje: `Clima obtenido para ${ciudad}`
-      });
-    } catch (error) {
-      res.status(502).json({ 
-        error: 'Error con el servicio externo de clima',
-        mensaje: error.message 
-      });
-    }
-  }
 );
 
 module.exports = router;
