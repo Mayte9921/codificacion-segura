@@ -7,12 +7,17 @@ const { obtenerClima } = require('../services/climaService');
 function validar(req, res, next) {
     const errores = validationResult(req);
     if (!errores.isEmpty()) {
-        return res.status(400).json({ errores: errores.array() });
+        return res.status(400).json({
+            exito: false,
+            errores: errores.array().map(err => ({
+                campo: err.param,
+                mensaje: err.msg
+            }))
+        });
     }
     next();
 }
 
-// GET /api/clima/:ciudad — clima de una ciudad (independiente)
 router.get(
     '/:ciudad',
     [
@@ -21,6 +26,8 @@ router.get(
             .trim()
             .isLength({ min: 1, max: 60 })
             .withMessage('La ciudad debe tener entre 1 y 60 caracteres')
+            .matches(/^[a-zA-ZáéíóúñÁÉÍÓÚÑ\s\-]+$/)
+            .withMessage('La ciudad solo debe contener letras, espacios o guiones')
             .escape()
     ],
     validar,
@@ -32,9 +39,10 @@ router.get(
                 datos: clima
             });
         } catch (error) {
-            res.status(502).json({ 
-                exito: false, 
-                error: error.message || 'Error al obtener el clima' 
+            console.error('Error al obtener clima:', error.message);
+            res.status(502).json({
+                exito: false,
+                error: error.message || 'Error al obtener el clima del servicio externo'
             });
         }
     }
